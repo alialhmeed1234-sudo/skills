@@ -1,15 +1,16 @@
-name: Claude Agent Runner
+name: AI Team Runner (Abdulaziz & Nova)
 
 on:
   issues:
-    types: [opened, edited]
+    types: [opened]
   issue_comment:
     types: [created]
 
 jobs:
-  run-agent:
+  run-team:
     runs-on: ubuntu-latest
-    if: contains(github.event.comment.body, '@claude') || contains(github.event.issue.title, '[Agent]')
+    # يمنع الأيجنت من الرد على نفسه لتفادي استهلاك الرصيد
+    if: github.actor != 'github-actions[bot]' && (contains(github.event.comment.body, '@claude') || contains(github.event.issue.body, '@claude') || contains(github.event.comment.body, '@nova') || contains(github.event.issue.body, '@nova'))
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -19,9 +20,57 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Run Claude Agent Task
+      - name: Install Dependencies
+        run: pip install anthropic groq requests
+
+      - name: Execute Agent Task
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          TEXT_BODY: ${{ github.event.comment.body || github.event.issue.body }}
         run: |
-          echo "Starting Agent execution using Anthropic API..."
-          python -c "import os; print('API Key status:', 'Loaded successfully' if os.environ.get('ANTHROPIC_API_KEY') else 'Missing')"
+          python - << 'EOF'
+          import os, requests
+          from anthropic import Anthropic
+          from groq import Groq
+
+          text = os.environ.get("TEXT_BODY", "")
+          repo = os.environ.get("GITHUB_REPOSITORY")
+          issue_num = os.environ.get("ISSUE_NUMBER")
+          gh_token = os.environ.get("GITHUB_TOKEN")
+
+          reply = ""
+
+          # تشغيل عبدالعزيز عبر Claude للمهام البرمجية والمنصات
+          if "@claude" in text:
+              client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+              res = client.messages.create(
+                  model="claude-3-5-sonnet-20241022",
+                  max_tokens=1500,
+                  temperature=0.2,
+                  system="أنت 'عبدالعزيز'، كبير المهندسين ومدير العمليات التقنية. اكتب أكواداً نظيفة وجاهزة للتشغيل وهياكل منصات احترافية باختصار وتركيز دون مقدمات طويلة.",
+                  messages=[{"role": "user", "content": text}]
+              )
+              reply += f"👨‍💻 **عبدالعزيز (العمليات والتقنية):**\n\n{res.content[0].text}\n\n---\n"
+
+          # تشغيل نوفا عبر Groq السريع للتسويق وإدارة الأعمال
+          if "@nova" in text:
+              g_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+              chat = g_client.chat.completions.create(
+                  model="llama-3.3-70b-versatile",
+                  max_tokens=1024,
+                  temperature=0.5,
+                  messages=[
+                      {"role": "system", "content": "أنتِ 'نوفا'، مديرة أعمال وتسويق بلهجة وشخصية لبنانية راقية، ذكية، وعملية جداً. مهمتك اقتناص الفرص، التسويق للمنصات، وصياغة الخطط والرسائل البيعية باختصار واحترافية."},
+                      {"role": "user", "content": text}
+                  ]
+              )
+              reply += f"✨ **نوفا (مديرة الأعمال والتسويق):**\n\n{chat.choices[0].message.content}\n"
+
+          if reply:
+              url = f"https://api.github.com/repos/{repo}/issues/{issue_num}/comments"
+              headers = {"Authorization": f"Bearer {gh_token}", "Accept": "application/vnd.github+json"}
+              requests.post(url, json={"body": reply}, headers=headers)
+          EOF

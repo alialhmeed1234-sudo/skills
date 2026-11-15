@@ -1,0 +1,27 @@
+name: Claude Agent Runner
+
+on:
+  issues:
+    types: [opened, edited]
+  issue_comment:
+    types: [created]
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+    if: contains(github.event.comment.body, '@claude') || contains(github.event.issue.title, '[Agent]')
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Run Claude Agent Task
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "Starting Agent execution using Anthropic API..."
+          python -c "import os; print('API Key status:', 'Loaded successfully' if os.environ.get('ANTHROPIC_API_KEY') else 'Missing')"

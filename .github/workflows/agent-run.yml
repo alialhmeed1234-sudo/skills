@@ -6,10 +6,13 @@ on:
   issue_comment:
     types: [created]
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   run-team:
     runs-on: ubuntu-latest
-    # يمنع الأيجنت من الرد على نفسه لتفادي استهلاك الرصيد
     if: github.actor != 'github-actions[bot]' && (contains(github.event.comment.body, '@claude') || contains(github.event.issue.body, '@claude') || contains(github.event.comment.body, '@nova') || contains(github.event.issue.body, '@nova'))
     steps:
       - name: Checkout Repository
@@ -47,9 +50,8 @@ jobs:
           if "@claude" in text:
               client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
               res = client.messages.create(
-                  model="claude-3-5-sonnet-20241022",
+                  model="claude-3-5-sonnet-latest",
                   max_tokens=1500,
-                  temperature=0.2,
                   system="أنت 'عبدالعزيز'، كبير المهندسين ومدير العمليات التقنية. اكتب أكواداً نظيفة وجاهزة للتشغيل وهياكل منصات احترافية باختصار وتركيز دون مقدمات طويلة.",
                   messages=[{"role": "user", "content": text}]
               )
@@ -61,7 +63,6 @@ jobs:
               chat = g_client.chat.completions.create(
                   model="llama-3.3-70b-versatile",
                   max_tokens=1024,
-                  temperature=0.5,
                   messages=[
                       {"role": "system", "content": "أنتِ 'نوفا'، مديرة أعمال وتسويق بلهجة وشخصية لبنانية راقية، ذكية، وعملية جداً. مهمتك اقتناص الفرص، التسويق للمنصات، وصياغة الخطط والرسائل البيعية باختصار واحترافية."},
                       {"role": "user", "content": text}
@@ -72,5 +73,6 @@ jobs:
           if reply:
               url = f"https://api.github.com/repos/{repo}/issues/{issue_num}/comments"
               headers = {"Authorization": f"Bearer {gh_token}", "Accept": "application/vnd.github+json"}
-              requests.post(url, json={"body": reply}, headers=headers)
+              r = requests.post(url, json={"body": reply}, headers=headers)
+              print("GitHub Comment Status:", r.status_code)
           EOF

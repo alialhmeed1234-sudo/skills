@@ -49,13 +49,23 @@ jobs:
           # تشغيل عبدالعزيز عبر Claude للمهام البرمجية والمنصات
           if "@claude" in text:
               client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-              res = client.messages.create(
-                  model="claude-3-5-sonnet-latest",
-                  max_tokens=1500,
-                  system="أنت 'عبدالعزيز'، كبير المهندسين ومدير العمليات التقنية. اكتب أكواداً نظيفة وجاهزة للتشغيل وهياكل منصات احترافية باختصار وتركيز دون مقدمات طويلة.",
-                  messages=[{"role": "user", "content": text}]
-              )
-              reply += f"👨‍💻 **عبدالعزيز (العمليات والتقنية):**\n\n{res.content[0].text}\n\n---\n"
+              models_to_try = ["claude-sonnet-4-6", "claude-sonnet-4-5", "claude-3-7-sonnet-20250219", "claude-3-5-haiku-20241022"]
+              res = None
+              for m in models_to_try:
+                  try:
+                      res = client.messages.create(
+                          model=m,
+                          max_tokens=1500,
+                          system="أنت 'عبدالعزيز'، كبير المهندسين ومدير العمليات التقنية. اكتب أكواداً نظيفة وجاهزة للتشغيل وهياكل منصات احترافية باختصار وتركيز دون مقدمات طويلة.",
+                          messages=[{"role": "user", "content": text}]
+                      )
+                      print(f"Success using model: {m}")
+                      break
+                  except Exception as e:
+                      print(f"Model {m} failed: {e}")
+              
+              if res:
+                  reply += f"👨‍💻 **عبدالعزيز (العمليات والتقنية):**\n\n{res.content[0].text}\n\n---\n"
 
           # تشغيل نوفا عبر Groq السريع للتسويق وإدارة الأعمال
           if "@nova" in text:

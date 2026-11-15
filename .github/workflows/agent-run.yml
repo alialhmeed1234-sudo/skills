@@ -42,43 +42,50 @@ jobs:
           text = os.environ.get("TEXT_BODY", "")
           repo = os.environ.get("GITHUB_REPOSITORY")
           issue_num = os.environ.get("ISSUE_NUMBER")
-          gh_token = os.environ.get("GITHUB_TOKEN")
+          gh_token = os.environ.get("GITHUB_TOKEN", "").strip()
+          anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+          groq_key = os.environ.get("GROQ_API_KEY", "").strip()
 
           reply = ""
 
-          # تشغيل عبدالعزيز عبر Claude للمهام البرمجية والمنصات
+          # تشغيل عبدالعزيز عبر Claude
           if "@claude" in text:
-              client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-              models_to_try = ["claude-sonnet-4-6", "claude-sonnet-4-5", "claude-3-7-sonnet-20250219", "claude-3-5-haiku-20241022"]
-              res = None
-              for m in models_to_try:
-                  try:
-                      res = client.messages.create(
-                          model=m,
-                          max_tokens=1500,
-                          system="أنت 'عبدالعزيز'، كبير المهندسين ومدير العمليات التقنية. اكتب أكواداً نظيفة وجاهزة للتشغيل وهياكل منصات احترافية باختصار وتركيز دون مقدمات طويلة.",
-                          messages=[{"role": "user", "content": text}]
-                      )
-                      print(f"Success using model: {m}")
-                      break
-                  except Exception as e:
-                      print(f"Model {m} failed: {e}")
-              
-              if res:
-                  reply += f"👨‍💻 **عبدالعزيز (العمليات والتقنية):**\n\n{res.content[0].text}\n\n---\n"
+              if not anthropic_key:
+                  reply += "⚠️ مفتاح ANTHROPIC_API_KEY غير مضاف في Secrets.\n\n"
+              else:
+                  client = Anthropic(api_key=anthropic_key)
+                  models_to_try = ["claude-sonnet-4-6", "claude-sonnet-4-5", "claude-3-7-sonnet-20250219", "claude-3-5-haiku-20241022"]
+                  for m in models_to_try:
+                      try:
+                          res = client.messages.create(
+                              model=m,
+                              max_tokens=1500,
+                              system="أنت 'عبدالعزيز'، كبير المهندسين ومدير العمليات التقنية. اكتب أكواداً نظيفة وجاهزة للتشغيل وهياكل منصات احترافية باختصار وتركيز دون مقدمات طويلة.",
+                              messages=[{"role": "user", "content": text}]
+                          )
+                          reply += f"👨‍💻 **عبدالعزيز (العمليات والتقنية):**\n\n{res.content[0].text}\n\n---\n"
+                          break
+                      except Exception as e:
+                          print(f"Model {m} error: {e}")
 
-          # تشغيل نوفا عبر Groq السريع للتسويق وإدارة الأعمال
+          # تشغيل نوفا عبر Groq
           if "@nova" in text:
-              g_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-              chat = g_client.chat.completions.create(
-                  model="llama-3.3-70b-versatile",
-                  max_tokens=1024,
-                  messages=[
-                      {"role": "system", "content": "أنتِ 'نوفا'، مديرة أعمال وتسويق بلهجة وشخصية لبنانية راقية، ذكية، وعملية جداً. مهمتك اقتناص الفرص، التسويق للمنصات، وصياغة الخطط والرسائل البيعية باختصار واحترافية."},
-                      {"role": "user", "content": text}
-                  ]
-              )
-              reply += f"✨ **نوفا (مديرة الأعمال والتسويق):**\n\n{chat.choices[0].message.content}\n"
+              if not groq_key:
+                  reply += "⚠️ مفتاح GROQ_API_KEY غير مضاف في Secrets.\n\n"
+              else:
+                  try:
+                      g_client = Groq(api_key=groq_key)
+                      chat = g_client.chat.completions.create(
+                          model="llama-3.3-70b-versatile",
+                          max_tokens=1024,
+                          messages=[
+                              {"role": "system", "content": "أنتِ 'نوفا'، مديرة أعمال وتسويق بلهجة وشخصية لبنانية راقية، ذكية، وعملية جداً. مهمتك اقتناص الفرص، التسويق للمنصات، وصياغة الخطط والرسائل البيعية باختصار واحترافية."},
+                              {"role": "user", "content": text}
+                          ]
+                      )
+                      reply += f"✨ **نوفا (مديرة الأعمال والتسويق):**\n\n{chat.choices[0].message.content}\n"
+                  except Exception as e:
+                      reply += f"⚠️ خطأ في اتصال نوفا (Groq): {e}\n"
 
           if reply:
               url = f"https://api.github.com/repos/{repo}/issues/{issue_num}/comments"

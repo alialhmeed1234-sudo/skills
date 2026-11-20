@@ -13,7 +13,12 @@ permissions:
 jobs:
   run-team:
     runs-on: ubuntu-latest
-    if: github.actor != 'github-actions[bot]' && (contains(github.event.comment.body, '@claude') || contains(github.event.issue.body, '@claude') || contains(github.event.comment.body, '@nova') || contains(github.event.issue.body, '@nova'))
+    timeout-minutes: 10
+    # أمان: لا يشتغل إلا إذا كان صاحب الريبو هو الفاعل، حتى لا يستهلك غريب مفاتيحك
+    if: >
+      github.actor == github.repository_owner &&
+      github.actor != 'github-actions[bot]' &&
+      (contains(github.event.comment.body, '@claude') || contains(github.event.issue.body, '@claude') || contains(github.event.comment.body, '@nova') || contains(github.event.issue.body, '@nova'))
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -54,7 +59,7 @@ jobs:
                   reply += "⚠️ مفتاح ANTHROPIC_API_KEY غير مضاف في Secrets.\n\n"
               else:
                   client = Anthropic(api_key=anthropic_key)
-                  models_to_try = ["claude-sonnet-4-6", "claude-sonnet-4-5", "claude-3-7-sonnet-20250219", "claude-3-5-haiku-20241022"]
+                  models_to_try = ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-sonnet-4-6"]
                   for m in models_to_try:
                       try:
                           res = client.messages.create(
@@ -66,7 +71,7 @@ jobs:
                           reply += f"👨‍💻 **عبدالعزيز (العمليات والتقنية):**\n\n{res.content[0].text}\n\n---\n"
                           break
                       except Exception as e:
-                          print(f"Model {m} error: {e}")
+                          print(f"Model {m} error: {type(e).__name__}")
 
           # تشغيل نوفا عبر Groq
           if "@nova" in text:
@@ -85,7 +90,7 @@ jobs:
                       )
                       reply += f"✨ **نوفا (مديرة الأعمال والتسويق):**\n\n{chat.choices[0].message.content}\n"
                   except Exception as e:
-                      reply += f"⚠️ خطأ في اتصال نوفا (Groq): {e}\n"
+                      reply += f"⚠️ خطأ في اتصال نوفا (Groq): {type(e).__name__}\n"
 
           if reply:
               url = f"https://api.github.com/repos/{repo}/issues/{issue_num}/comments"
